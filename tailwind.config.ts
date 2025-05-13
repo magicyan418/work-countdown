@@ -68,6 +68,18 @@ const config = {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        'up-move': {
+          '0%': { transform: 'rotateX(0deg)', opacity: '1' },
+          '49%': { transform: 'rotateX(-90deg)', opacity: '1' },
+          '50%': { transform: 'rotateX(-90deg)', opacity: '0' },
+          '100%': { transform: 'rotateX(-90deg)', opacity: '0' },
+        },
+        'down-move': {
+          '0%': { transform: 'rotateX(90deg)', opacity: '0' },
+          '50%': { transform: 'rotateX(90deg)', opacity: '0' },
+          '51%': { transform: 'rotateX(90deg)', opacity: '1' },
+          '100%': { transform: 'rotateX(0deg)', opacity: '1' },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",

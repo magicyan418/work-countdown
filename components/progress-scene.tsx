@@ -26,7 +26,7 @@ export function ProgressScene({ progress }: ProgressSceneProps) {
 
     setCanvasDimensions()
     window.addEventListener("resize", setCanvasDimensions)
-
+    console.log("canvas", canvas)
     // Animation variables
     const draw = () => {
       const width = canvas.width / window.devicePixelRatio
@@ -172,20 +172,23 @@ function drawOfficeScene(ctx: CanvasRenderingContext2D, width: number, height: n
       const windowX = width * 0.2 + col * windowWidth * 1.5 + windowWidth * 0.25
       const windowY = height * 0.4 + row * windowHeight * 1.5 + windowHeight * 0.25
 
-      // 窗户灯光基于一天中的时间
+      // 使用时间和位置来确定窗户的闪烁
       let windowColor
       if (progress < 25) {
-        // 早晨 - 一些灯亮着
-        windowColor = Math.random() > 0.7 ? "#ffeb3b" : "#263238"
+        // 早晨 - 一些灯亮着，使用时间和位置来确定闪烁
+        const timeOffset = Math.sin((Date.now() / 2000) + (row * 2) + col) // 降低频率并添加位置偏移
+        windowColor = timeOffset > 0.7 ? "#ffeb3b" : "#263238"
       } else if (progress < 75) {
         // 白天 - 灯关着
         windowColor = "#90a4ae"
       } else if (isUrgent) {
-        // 急迫模式 - 闪烁的灯光
-        windowColor = Math.sin(Date.now() / 100) > 0 ? "#ffeb3b" : "#ff5722"
+        // 急迫模式 - 闪烁的灯光，使用较慢的时间频率
+        const timeOffset = Math.sin((Date.now() / 500) + (row * 2) + col) // 降低闪烁频率
+        windowColor = timeOffset > 0 ? "#ffeb3b" : "#ff5722"
       } else {
-        // 傍晚 - 大多数灯亮着
-        windowColor = Math.random() > 0.3 ? "#ffeb3b" : "#263238"
+        // 傍晚 - 大多数灯亮着，使用时间和位置来确定闪烁
+        const timeOffset = Math.sin((Date.now() / 2000) + (row * 2) + col)
+        windowColor = timeOffset > 0.3 ? "#ffeb3b" : "#263238"
       }
 
       ctx.fillStyle = windowColor
@@ -367,7 +370,7 @@ function drawOfficeScene(ctx: CanvasRenderingContext2D, width: number, height: n
     ctx.translate(width * 0.5, height * 0.2)
     ctx.scale(scale, scale)
     ctx.fillStyle = "#ff5722"
-    ctx.fillText("下班啦!", 0, 0)
+    ctx.fillText("即将下班!", 0, 0)
     ctx.restore()
 
     // 重置阴影
