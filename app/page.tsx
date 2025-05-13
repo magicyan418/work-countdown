@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { FlipCard } from "@/components/flip-card"
 import { ProgressScene } from "@/components/progress-scene"
 import { cn } from "@/lib/utils"
+import FlipCard from "@/components/flip-card"
 
 export default function Home() {
   const [endTime, setEndTime] = useState("18:00")
@@ -80,7 +80,6 @@ export default function Home() {
     <main className="flex min-h-screen flex-col items-center justify-center p-4 relative overflow-hidden">
       {/* 背景场景 */}
       <ProgressScene progress={progress} />
-
       {/* 主要内容 */}
       <div
         className={cn(
@@ -141,17 +140,26 @@ export default function Home() {
 
           <div className="flex gap-1 sm:gap-2 justify-center">
             <div className="flex flex-col items-center">
-              <FlipCard value={formatNumber(countdown.hours)} isUrgent={isUrgent} />
+              <div className="flex gap-1">
+                <FlipCard value={formatNumber(countdown.hours)[0]} isUrgent={isUrgent} />
+                <FlipCard value={formatNumber(countdown.hours)[1]} isUrgent={isUrgent} />
+              </div>
               <span className="text-xs mt-1 text-gray-200">小时</span>
             </div>
             <div className="text-4xl font-bold flex items-center justify-center pb-6 text-white">:</div>
             <div className="flex flex-col items-center">
-              <FlipCard value={formatNumber(countdown.minutes)} isUrgent={isUrgent} />
+              <div className="flex gap-1">
+                <FlipCard value={formatNumber(countdown.minutes)[0]} isUrgent={isUrgent} />
+                <FlipCard value={formatNumber(countdown.minutes)[1]} isUrgent={isUrgent} />
+              </div>
               <span className="text-xs mt-1 text-gray-200">分钟</span>
             </div>
             <div className="text-4xl font-bold flex items-center justify-center pb-6 text-white">:</div>
             <div className="flex flex-col items-center">
-              <FlipCard value={formatNumber(countdown.seconds)} isUrgent={isUrgent} />
+              <div className="flex gap-1">
+                <FlipCard value={formatNumber(countdown.seconds)[0]} isUrgent={isUrgent} />
+                <FlipCard value={formatNumber(countdown.seconds)[1]} isUrgent={isUrgent} />
+              </div>
               <span className="text-xs mt-1 text-gray-200">秒</span>
             </div>
           </div>

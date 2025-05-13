@@ -1,102 +1,92 @@
-"use client"
+'use client'
 
-import { useState, useEffect } from "react"
-import { cn } from "@/lib/utils"
+import { useEffect, useState, useRef } from 'react'
 
 interface FlipCardProps {
   value: string
   isUrgent?: boolean
 }
 
-export function FlipCard({ value, isUrgent = false }: FlipCardProps) {
-  const [flip, setFlip] = useState(false)
-  const [currentValue, setCurrentValue] = useState(value)
-  const [nextValue, setNextValue] = useState(value)
-  const [bottomValue, setBottomValue] = useState(value)
+const FlipCard = ({ value, isUrgent = false }: FlipCardProps) => {
+  const [currentNumber, setCurrentNumber] = useState(value)
+  const [nextNumber, setNextNumber] = useState(value)
+  const [isFlipping, setIsFlipping] = useState(false)
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
-    if (value === currentValue) return
+    if (value !== currentNumber) {
+      setNextNumber(value)
+      setIsFlipping(true)
+      
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+      }
+      
+      timeoutRef.current = setTimeout(() => {
+        setCurrentNumber(value)
+        setIsFlipping(false)
+      }, 600)
+    }
 
-    setNextValue(value)
-    setFlip(true)
-
-    const timeout = setTimeout(() => {
-      setCurrentValue(value)
-      setBottomValue(value)
-      setFlip(false)
-    }, 300) // Half of the transition time
-
-    return () => clearTimeout(timeout)
-  }, [value, currentValue])
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+      }
+    }
+  }, [value, currentNumber])
 
   return (
-    <div className="relative w-16 h-20 sm:w-20 sm:h-24 group">
-      <div className="flip-card-inner w-full h-full relative">
-        {/* Current Value (Top Half) */}
-        <div
-          className={cn(
-            "absolute inset-0 h-1/2 overflow-hidden rounded-t-lg border-b border-gray-900 transition-all duration-300",
-            isUrgent ? "bg-red-900/90 group-hover:bg-red-900" : "bg-gray-800/80 group-hover:bg-gray-800",
-            "shadow-lg",
-          )}
-        >
-          <div
-            className="absolute inset-0 flex items-center justify-center text-3xl sm:text-4xl font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]"
-            style={{ top: 0, height: "200%" }}
-          >
-            {currentValue}
-          </div>
-        </div>
-
-        {/* Current Value (Bottom Half) */}
-        <div
-          className={cn(
-            "absolute inset-0 top-1/2 h-1/2 overflow-hidden rounded-b-lg transition-all duration-300",
-            isUrgent ? "bg-red-800/90 group-hover:bg-red-800" : "bg-gray-700/80 group-hover:bg-gray-700",
-            "shadow-lg",
-          )}
-        >
-          <div
-            className="absolute inset-0 flex items-center justify-center text-3xl sm:text-4xl font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]"
-            style={{ top: "-100%", height: "200%" }}
-          >
-            {bottomValue}
-          </div>
-        </div>
-
-        {/* Flipping Top Half */}
-        <div
-          className={cn(
-            "absolute inset-0 h-1/2 overflow-hidden rounded-t-lg border-b border-gray-900 backface-hidden transition-all duration-600",
-            flip ? "rotate-x-90 origin-bottom" : "",
-            isUrgent ? "bg-red-900/90 group-hover:bg-red-900" : "bg-gray-800/80 group-hover:bg-gray-800",
-            "shadow-lg",
-          )}
-        >
-          <div
-            className="absolute inset-0 flex items-center justify-center text-3xl sm:text-4xl font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]"
-            style={{ top: 0, height: "200%" }}
-          >
-            {currentValue}
-          </div>
-        </div>
-
-        {/* Next Value (Bottom Half) - 不再有翻转动画 */}
-        <div
-          className={cn(
-            "absolute inset-0 top-1/2 h-1/2 overflow-hidden rounded-b-lg transition-all duration-300",
-            isUrgent ? "bg-red-800/90 group-hover:bg-red-800" : "bg-gray-700/80 group-hover:bg-gray-700",
-            "shadow-lg",
-          )}
-        >
-          <div
-            className="absolute inset-0 flex items-center justify-center text-3xl sm:text-4xl font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]"
-            style={{ top: "-100%", height: "200%" }}
-          >
-            {flip ? nextValue : bottomValue}
-          </div>
+    <section className={`
+      relative w-[1.6em] h-[2em] text-center text-[40px] font-bold text-white [perspective:8em]
+      ${isUrgent ? 'animate-pulse' : ''}
+    `}>
+      {/* 静态上半部分 */}
+      <div className={`
+        absolute inset-x-0 h-1/2 overflow-hidden
+        ${isUrgent ? 'bg-red-900/90' : 'bg-neutral-700'} 
+        top-0 rounded-t-[4px]
+      `}>
+        <div className="h-[2em] leading-[2em] translate-y-[0.05em]">
+          {isFlipping ? nextNumber : currentNumber}
         </div>
       </div>
-    </div>
+      
+      {/* 静态下半部分 */}
+      <div className={`
+        absolute inset-x-0 h-1/2 overflow-hidden
+        ${isUrgent ? 'bg-red-800/90' : 'bg-neutral-600'} 
+        bottom-0 rounded-b-[4px]
+      `}>
+        <div className="h-[2em] leading-[2em] -translate-y-[0.95em]">
+          {currentNumber}
+        </div>
+      </div>
+      
+      {/* 翻转上半部分 */}
+      <div className={`
+        absolute inset-x-0 h-1/2 overflow-hidden transition-all duration-600 linear 
+        ${isUrgent ? 'bg-red-900/90' : 'bg-neutral-700'} 
+        top-0 rounded-t-[4px] origin-[0_100%]
+        ${isFlipping ? 'animate-[up-move_700ms_linear_forwards] z-20' : 'opacity-0'}
+      `}>
+        <div className="h-[2em] leading-[2em] translate-y-[0.05em]">
+          {nextNumber}
+        </div>
+      </div>
+      
+      {/* 翻转下半部分 */}
+      <div className={`
+        absolute inset-x-0 h-1/2 overflow-hidden transition-all duration-600 linear 
+        ${isUrgent ? 'bg-red-800/90' : 'bg-neutral-600'} 
+        bottom-0 rounded-b-[4px] origin-[0_0]
+        ${isFlipping ? 'animate-[down-move_700ms_linear_forwards] z-20' : 'opacity-0'}
+      `}>
+        <div className="h-[2em] leading-[2em] -translate-y-[0.95em]">
+          {nextNumber}
+        </div>
+      </div>
+    </section>
   )
 }
+
+export default FlipCard
