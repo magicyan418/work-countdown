@@ -1,20 +1,31 @@
-import type { Metadata } from 'next'
-import './globals.css'
+import "@/app/globals.css";
+import { Inter } from "next/font/google";
+import { ThemeProvider } from "@/components/theme-provider";
 
-export const metadata: Metadata = {
-  title: 'Work CountDown',
-  description: 'This is a work countdown website',
-  generator: 'Next.js',
-}
+const inter = Inter({ subsets: ["latin"] });
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode
-}>) {
+export const metadata = {
+  title: "倒计时",
+  description: "一个简单的下班倒计时应用",
+  generator: "magicyan",
+  icons: {
+    icon: "/favicon.ico",
+  }
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="zh-CN" suppressHydrationWarning>
+      <body className={inter.className}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+        </ThemeProvider>
+      </body>
     </html>
-  )
+  );
 }

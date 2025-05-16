@@ -1,223 +1,377 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Clock, Settings } from "lucide-react"
+import { Clock, Coffee, Home, Briefcase, PartyPopper } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { ProgressScene } from "@/components/progress-scene"
-import { cn } from "@/lib/utils"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Progress } from "@/components/ui/progress"
+import { useToast } from "@/hooks/use-toast"
 import FlipCard from "@/components/flip-card"
+import confetti from "canvas-confetti"
 
-export default function Home() {
-  const [endTime, setEndTime] = useState("18:00")
-  const [tempEndTime, setTempEndTime] = useState(endTime)  // 添加临时状态存储选择的时间
-  const [countdown, setCountdown] = useState({ hours: 0, minutes: 0, seconds: 0 })
+export default function WorkCountdown() {
+  const [timeLeft, setTimeLeft] = useState({
+    hours: 0,
+    minutes: 0,
+    seconds: 0,
+    totalSeconds: 0,
+  })
+  const [workEndTime, setWorkEndTime] = useState("18:00")
+  const [isEditing, setIsEditing] = useState(false)
+  const [isWorkOver, setIsWorkOver] = useState(false)
   const [progress, setProgress] = useState(0)
-  const [isWorkDay, setIsWorkDay] = useState(true)
-  const [isUrgent, setIsUrgent] = useState(false)
+  const { toast } = useToast()
 
-  // Calculate time remaining until end time
-  useEffect(() => {
-    const calculateTimeRemaining = () => {
-      const now = new Date()
-      const [hours, minutes] = endTime.split(":").map(Number)
+  let hours, minutes // Declare hours and minutes here to avoid redeclaration errors
 
-      const endTimeDate = new Date(now)
-      endTimeDate.setHours(hours, minutes, 0, 0)
+  // 计算剩余时间
+  const calculateTimeLeft = () => {
+    const now = new Date()
+    ;[hours, minutes] = workEndTime.split(":").map(Number)
 
-      // If end time has passed for today, show 0
-      if (now > endTimeDate) {
-        setIsWorkDay(false)
-        setCountdown({ hours: 0, minutes: 0, seconds: 0 })
-        setProgress(100)
-        return
+    const endTime = new Date(now)
+    endTime.setHours(hours, minutes, 0, 0)
+
+    // 如果已经过了下班时间，显示为0
+    if (now >= endTime) {
+      if (!isWorkOver) {
+        setIsWorkOver(true)
+        triggerConfetti()
+        toast({
+          title: "🎉 下班啦！",
+          description: "是时候享受美好的下班时光了！",
+        })
       }
-
-      setIsWorkDay(true)
-
-      // Calculate time difference in milliseconds
-      const diff = endTimeDate.getTime() - now.getTime()
-
-      // 检查是否在下班前三分钟内
-      const isWithinThreeMinutes = diff <= 3 * 60 * 1000 && diff > 0
-      setIsUrgent(isWithinThreeMinutes)
-
-      // Convert to hours, minutes, seconds
-      const hoursRemaining = Math.floor(diff / (1000 * 60 * 60))
-      const minutesRemaining = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-      const secondsRemaining = Math.floor((diff % (1000 * 60)) / 1000)
-
-      setCountdown({
-        hours: hoursRemaining,
-        minutes: minutesRemaining,
-        seconds: secondsRemaining,
-      })
-
-      // Calculate progress (assuming 8-hour workday starting 8 hours before end time)
-      const workdayStart = new Date(endTimeDate)
-      workdayStart.setHours(workdayStart.getHours() - 8)
-
-      const totalWorkdayMs = endTimeDate.getTime() - workdayStart.getTime()
-      const elapsedMs = now.getTime() - workdayStart.getTime()
-
-      const calculatedProgress = Math.min(100, Math.max(0, (elapsedMs / totalWorkdayMs) * 100))
-      // 保留两位小数的进度值
-      setProgress(Number.parseFloat(calculatedProgress.toFixed(2)))
+      return { hours: 0, minutes: 0, seconds: 0, totalSeconds: 0 }
     }
 
-    calculateTimeRemaining()
-    const interval = setInterval(calculateTimeRemaining, 1000)
+    setIsWorkOver(false)
 
-    return () => clearInterval(interval)
-  }, [endTime])
+    const diff = Math.floor((endTime.getTime() - now.getTime()) / 1000)
+    hours = Math.floor(diff / 3600)
+    minutes = Math.floor((diff % 3600) / 60)
+    const seconds = diff % 60
 
-  // Format numbers to always have two digits
-  const formatNumber = (num: number) => num.toString().padStart(2, "0")
+    return { hours, minutes, seconds, totalSeconds: diff }
+  }
+
+  // 计算工作日进度
+  const calculateProgress = () => {
+    const now = new Date()
+    const [endHours, endMinutes] = workEndTime.split(":").map(Number)
+
+    // 假设工作日从9:00开始
+    const startTime = new Date(now)
+    startTime.setHours(9, 0, 0, 0)
+
+    const endTime = new Date(now)
+    endTime.setHours(endHours, endMinutes, 0, 0)
+
+    const totalWorkSeconds = (endTime.getTime() - startTime.getTime()) / 1000
+    const elapsedSeconds = (now.getTime() - startTime.getTime()) / 1000
+
+    if (elapsedSeconds <= 0) return 0
+    if (elapsedSeconds >= totalWorkSeconds) return 100
+
+    return Math.min(100, Math.max(0, Math.floor((elapsedSeconds / totalWorkSeconds) * 100)))
+  }
+
+  const [messageStyle, setMessageStyle] = useState<"poetic" | "motivational" | "zen" | "lazy" | "slacker">("poetic")
+
+  // 根据剩余时间获取鼓励信息
+  const getMotivationalMessage = () => {
+    const { totalSeconds } = timeLeft
+
+    const messages = {
+      poetic: {
+        over: "享受美好的下班时光吧！",
+        s300: "归途在眼前，万物皆安。",
+        s1800: "光影交错，劳作将歇。",
+        s3600: "时光如歌，终章已近。",
+        s7200: "半日已过，心绪渐轻。",
+        default: "时钟缓缓转动，生活正悄然展开。"
+      },
+      motivational: {
+        over: "下班不是终点，而是整装待发！",
+        s300: "最后一搏，胜利就在前方！",
+        s1800: "坚持半小时，你就是传说！",
+        s3600: "冲刺阶段，不负今日！",
+        s7200: "别停下，你已经超过了昨天的自己！",
+        default: "每一滴汗水，都是明天的荣耀勋章！"
+      },
+      zen: {
+        over: "一切随缘，下班即是解脱。",
+        s300: "五分钟也是缘分，且行且珍惜。",
+        s1800: "时间在流，我们在坐。",
+        s3600: "一小时而已，何足挂怀。",
+        s7200: "光阴如水，喝杯茶再说。",
+        default: "上班也好，下班也罢，心静即安。"
+      },
+      lazy: {
+        over: "结束了，能躺就躺，别想太多。",
+        s300: "再撑会，等下就能摊着不动了。",
+        s1800: "干完这段，今晚葛优躺安排上。",
+        s3600: "硬撑一小时，不如偷个懒先躺会。",
+        s7200: "撑住，休息才是正经事。",
+        default: "躺不躺的无所谓，反正也不会多有劲。"
+      },
+      slacker: {
+        over: "哦豁，下班了，躺平才是硬道理。",
+        s300: "差不多了，装个样子就好。",
+        s1800: "还有半小时，划划水混过去。",
+        s3600: "一小时？不如刷会短视频冷静一下。",
+        s7200: "反正也干不完，先发呆。",
+        default: "能动手绝不动脑，能拖延就不着急。"
+      }
+    }
+
+    const currentStyle = messages[messageStyle]
+
+    if (isWorkOver) return currentStyle.over
+    if (totalSeconds <= 300) return currentStyle.s300
+    if (totalSeconds <= 1800) return currentStyle.s1800
+    if (totalSeconds <= 3600) return currentStyle.s3600
+    if (totalSeconds <= 7200) return currentStyle.s7200
+    return currentStyle.default
+  }
+
+  const styleIcons = {
+    poetic: "📜",
+    motivational: "🔥",
+    zen: "🧘‍♂️",
+    lazy: "🛏",
+    slacker: "🧟‍♂️"
+  }
+
+  const styleNames = {
+    poetic: "诗意抽象",
+    motivational: "励志燃魂",
+    zen: "佛系洒脱",
+    lazy: "躺平",
+    slacker: "摆烂"
+  }
+
+  // 获取表情图标
+  const getEmoji = () => {
+    const { totalSeconds } = timeLeft
+
+    if (isWorkOver) return "🎉"
+    if (totalSeconds <= 300) return "🚀"
+    if (totalSeconds <= 1800) return "⏳"
+    if (totalSeconds <= 3600) return "☕"
+    if (totalSeconds <= 7200) return "💪"
+    return "📝"
+  }
+
+  // 触发庆祝彩花效果
+  const triggerConfetti = () => {
+    const duration = 3 * 1000
+    const animationEnd = Date.now() + duration
+    const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 }
+
+    const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min
+
+    const interval = setInterval(() => {
+      const timeLeft = animationEnd - Date.now()
+
+      if (timeLeft <= 0) {
+        return clearInterval(interval)
+      }
+
+      const particleCount = 50 * (timeLeft / duration)
+
+      // 从左右两侧发射彩花
+      confetti({
+        ...defaults,
+        particleCount,
+        origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
+      })
+      confetti({
+        ...defaults,
+        particleCount,
+        origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
+      })
+    }, 250)
+  }
+
+  // 更新时间
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeft(calculateTimeLeft())
+      setProgress(calculateProgress())
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [workEndTime])
+
+  // 初始化
+  useEffect(() => {
+    setTimeLeft(calculateTimeLeft())
+    setProgress(calculateProgress())
+  }, [workEndTime])
+
+  const [tempEndTime, setTempEndTime] = useState(workEndTime)
+
+  // 处理下班时间变更
+  const handleEndTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newTime = e.target.value
+    setTempEndTime(newTime) // 修改这里，更新临时时间而不是直接更新workEndTime
+  }
+
+  // 处理确认时间变更
+  const handleConfirmTime = () => {
+    setWorkEndTime(tempEndTime)
+    setIsEditing(false)
+    toast({
+      title: "⏰ 时间已更新",
+      description: `下班时间已设置为 ${tempEndTime}`,
+    })
+  }
+
+  // 在切换风格时添加提示
+  const handleStyleChange = (style: "poetic" | "motivational" | "zen" | "lazy" | "slacker") => {
+    setMessageStyle(style)
+    toast({
+      title: `${styleIcons[style]} 风格已切换`,
+      description: `已切换至${styleNames[style]}风格`,
+    })
+  }
+
+  // 格式化时间显示
+  const formatTime = (value: number) => {
+    return value.toString().padStart(2, "0")
+  }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-4 relative overflow-hidden">
-      {/* 背景场景 */}
-      <ProgressScene progress={progress} />
-      {/* 主要内容 */}
-      <div
-        className={cn(
-          "relative z-10 w-full max-w-md flex flex-col items-center gap-8 p-6 rounded-xl transition-all duration-300",
-          "bg-black/10 backdrop-blur-[2px] hover:backdrop-blur-md hover:bg-black/40",
-          "group",
-          isUrgent && "animate-pulse shadow-[0_0_15px_5px_rgba(239,68,68,0.7)]",
-        )}
-      >
-        <h1
-          className={cn(
-            "text-3xl font-bold text-center transition-all duration-300",
-            "text-white/90 group-hover:text-white drop-shadow-[0_2px_3px_rgba(0,0,0,0.5)]",
-            isUrgent && "text-red-400 animate-bounce",
-          )}
-        >
-          下班倒计时
-        </h1>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-blue-50 to-purple-50 p-4">
+      <Card className="w-full max-w-md shadow-lg">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-bold">
+            <span className="mr-2">{getEmoji()}</span>
+            下班倒计时
+          </CardTitle>
+          <CardDescription>努力工作，快乐生活</CardDescription>
+        </CardHeader>
 
-        <Dialog>
-          <DialogTrigger asChild>
+        <CardContent className="space-y-6">
+          {/* 倒计时显示 */}
+          <div className="flex justify-center space-x-4 text-center">
+            <div className="flex flex-col">
+              <FlipCard value={formatTime(timeLeft.hours)} />
+              <span className="mt-2 text-sm">小时</span>
+            </div>
+            <div className="flex flex-col">
+              <FlipCard value={formatTime(timeLeft.minutes)} />
+              <span className="mt-2 text-sm">分钟</span>
+            </div>
+            <div className="flex flex-col">
+              <FlipCard value={formatTime(timeLeft.seconds)} />
+              <span className="mt-2 text-sm">秒</span>
+            </div>
+          </div>
+
+          {/* 进度条 */}
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <div className="flex items-center">
+                <Briefcase className="mr-1 h-4 w-4" />
+                <span>工作中</span>
+              </div>
+              <div className="flex items-center">
+                <Home className="mr-1 h-4 w-4" />
+                <span>下班啦</span>
+              </div>
+            </div>
+            <Progress value={progress} className="h-3" />
+          </div>
+
+          {/* 鼓励信息 */}
+          <div className="space-y-2">
+            <div className="flex justify-around space-x-2">
+              <TooltipProvider>
+                {Object.entries(styleIcons).map(([style, icon]) => (
+                  <Tooltip key={style}>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant={messageStyle === style ? "default" : "outline"}
+                        onClick={() => handleStyleChange(style as typeof messageStyle)}
+                      >
+                        {icon}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{styleNames[style as keyof typeof styleNames]}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+              </TooltipProvider>
+            </div>
+            <div className="rounded-lg bg-blue-50 p-4 text-center">
+              <p className="text-lg font-medium text-blue-800">{getMotivationalMessage()}</p>
+            </div>
+          </div>
+
+          {/* 设置下班时间 */}
+          <div className="flex items-center justify-between rounded-lg bg-gray-50 p-3">
+            <div className="flex items-center">
+              <Clock className="mr-2 h-5 w-5 text-gray-600" />
+              <span className="text-sm font-medium">下班时间:</span>
+            </div>
+
+            {isEditing ? (
+              <div className="flex items-center space-x-2">
+                <input
+                  type="time"
+                  value={tempEndTime}
+                  onChange={handleEndTimeChange}
+                  className="rounded border border-gray-300 px-2 py-1 text-sm"
+                />
+                <Button size="sm" variant="outline" onClick={handleConfirmTime}>
+                  确定
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-2">
+                <span className="font-medium">{workEndTime}</span>
+                <Button size="sm" variant="ghost" onClick={() => setIsEditing(true)}>
+                  修改
+                </Button>
+              </div>
+            )}
+          </div>
+        </CardContent>
+
+        <CardFooter className="flex justify-center">
+          {isWorkOver ? (
+            <Button className="w-full gap-2" onClick={triggerConfetti}>
+              <PartyPopper className="h-4 w-4" />
+              再来一次庆祝！
+            </Button>
+          ) : (
             <Button
               variant="outline"
-              className="gap-2 bg-white/20 hover:bg-white/40 backdrop-blur-sm transition-all duration-300 shadow-md"
+              className="w-full gap-2"
+              onClick={() => {
+                toast({
+                  title: "☕ 休息一下",
+                  description: "短暂休息，提高工作效率！",
+                })
+              }}
             >
-              <Settings size={16} />
-              设置下班时间
+              <Coffee className="h-4 w-4" />
+              休息一下
             </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>设置下班时间</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="end-time">下班时间</Label>
-                <Input 
-                  id="end-time" 
-                  type="time" 
-                  value={tempEndTime} 
-                  onChange={(e) => setTempEndTime(e.target.value)} 
-                />
-              </div>
-            </div>
-            <Button onClick={() => {
-              setEndTime(tempEndTime);  // 点击保存时才应用新的时间
-              const closeButton = document.querySelector('button[aria-label="Close"]') as HTMLButtonElement;
-              closeButton?.click();
-            }}>保存</Button>
-          </DialogContent>
-        </Dialog>
-
-        <div className="relative w-full">
-          <div className="flex items-center gap-2 text-2xl mb-4 transition-all duration-300 text-white/90 group-hover:text-white drop-shadow-[0_2px_3px_rgba(0,0,0,0.5)]">
-            <Clock size={24} className={cn("text-yellow-400", isUrgent && "text-red-400")} />
-            <span>下班时间: {endTime}</span>
-          </div>
-
-          <div className="flex gap-1 sm:gap-2 justify-center">
-            <div className="flex flex-col items-center">
-              <div className="flex gap-1">
-                <FlipCard value={formatNumber(countdown.hours)[0]} isUrgent={isUrgent} />
-                <FlipCard value={formatNumber(countdown.hours)[1]} isUrgent={isUrgent} />
-              </div>
-              <span className="text-xs mt-1 text-gray-200">小时</span>
-            </div>
-            <div className="text-4xl font-bold flex items-center justify-center pb-6 text-white">:</div>
-            <div className="flex flex-col items-center">
-              <div className="flex gap-1">
-                <FlipCard value={formatNumber(countdown.minutes)[0]} isUrgent={isUrgent} />
-                <FlipCard value={formatNumber(countdown.minutes)[1]} isUrgent={isUrgent} />
-              </div>
-              <span className="text-xs mt-1 text-gray-200">分钟</span>
-            </div>
-            <div className="text-4xl font-bold flex items-center justify-center pb-6 text-white">:</div>
-            <div className="flex flex-col items-center">
-              <div className="flex gap-1">
-                <FlipCard value={formatNumber(countdown.seconds)[0]} isUrgent={isUrgent} />
-                <FlipCard value={formatNumber(countdown.seconds)[1]} isUrgent={isUrgent} />
-              </div>
-              <span className="text-xs mt-1 text-gray-200">秒</span>
-            </div>
-          </div>
-
-          {isWorkDay ? (
-            <div className="w-full text-center mt-6">
-              <p
-                className={cn(
-                  "text-lg mb-2 transition-all duration-300",
-                  "text-white/90 group-hover:text-white drop-shadow-[0_2px_3px_rgba(0,0,0,0.5)]",
-                  isUrgent && "text-red-300 font-bold text-xl",
-                )}
-              >
-                {isUrgent
-                  ? "马上就要下班啦！准备收拾东西吧！🎉"
-                  : progress < 25
-                    ? "坚持住，才刚开始！"
-                    : progress < 50
-                      ? "已经完成了四分之一！"
-                      : progress < 75
-                        ? "过半了，继续加油！"
-                        : progress < 90
-                          ? "即将解放，冲刺阶段！"
-                          : "马上就可以下班了！"}
-              </p>
-              <p
-                className={cn(
-                  "text-sm mb-1 text-right transition-all duration-300",
-                  "text-white/80 group-hover:text-white",
-                  isUrgent && "text-red-200",
-                )}
-              >
-                进度: {progress.toFixed(2)}%
-              </p>
-              <div className="w-full h-4 bg-gray-700/30 group-hover:bg-gray-700/50 rounded-full overflow-hidden backdrop-blur-sm transition-all duration-300">
-                <div
-                  className={cn(
-                    "h-full rounded-full transition-all duration-1000 ease-out",
-                    isUrgent && "animate-pulse",
-                  )}
-                  style={{
-                    width: `${progress}%`,
-                    background: `linear-gradient(90deg, 
-                      ${progress < 30 ? "#3b82f6" : progress < 60 ? "#10b981" : progress < 90 ? "#f59e0b" : "#ef4444"}
-                      , 
-                      ${progress < 30 ? "#60a5fa" : progress < 60 ? "#34d399" : progress < 90 ? "#fbbf24" : "#f87171"}
-                    )`,
-                  }}
-                />
-              </div>
-            </div>
-          ) : (
-            <p className="text-xl font-bold text-green-400/90 group-hover:text-green-400 mt-6 drop-shadow-[0_2px_3px_rgba(0,0,0,0.5)] transition-all duration-300">
-              已经下班啦！享受美好的下班时光吧！
-            </p>
           )}
-        </div>
-      </div>
-    </main>
+        </CardFooter>
+      </Card>
+      <Toaster /> {/* 添加 Toaster 组件 */}
+    </div>
   )
 }
+
+// 在文件顶部添加 Tooltip 相关组件的导入
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+
+// 在文件顶部添加 Toaster 组件的导入
+import { Toaster } from "@/components/ui/toaster"
