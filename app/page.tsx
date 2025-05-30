@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Clock, Coffee, Home, Briefcase, PartyPopper } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,9 +20,18 @@ export default function WorkCountdown() {
   const [isEditing, setIsEditing] = useState(false)
   const [isWorkOver, setIsWorkOver] = useState(false)
   const [progress, setProgress] = useState(0)
+  const toastShownRef = useRef(false)
   const { toast } = useToast()
 
   let hours, minutes // Declare hours and minutes here to avoid redeclaration errors
+
+  // 使用useEffect在客户端加载时从localStorage获取保存的下班时间
+  useEffect(() => {
+    const savedEndTime = localStorage.getItem('workEndTime')
+    if (savedEndTime) {
+      setWorkEndTime(savedEndTime)
+    }
+  }, [])
 
   // 计算剩余时间
   const calculateTimeLeft = () => {
@@ -37,10 +46,13 @@ export default function WorkCountdown() {
       if (!isWorkOver) {
         setIsWorkOver(true)
         triggerConfetti()
-        toast({
-          title: "🎉 下班啦！",
-          description: "是时候享受美好的下班时光了！",
-        })
+        if (!toastShownRef.current) { // 使用ref检查toast是否已显示
+          toastShownRef.current = true
+          toast({
+            title: "🎉 下班啦！",
+            description: "是时候享受美好的下班时光了！",
+          })
+        }
       }
       return { hours: 0, minutes: 0, seconds: 0, totalSeconds: 0 }
     }
@@ -221,7 +233,10 @@ export default function WorkCountdown() {
   // 处理确认时间变更
   const handleConfirmTime = () => {
     setWorkEndTime(tempEndTime)
+    // 保存到localStorage (在客户端运行时)
+    localStorage.setItem('workEndTime', tempEndTime)
     setIsEditing(false)
+    toastShownRef.current = false // 重置toast状态
     toast({
       title: "⏰ 时间已更新",
       description: `下班时间已设置为 ${tempEndTime}`,
